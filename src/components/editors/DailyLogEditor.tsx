@@ -1,65 +1,153 @@
-import { useState } from 'react';
-import { Save } from 'lucide-react';
 
-interface LogSection {
-  id: string;
-  label: string;
-  placeholder: string;
-}
-
-const sections: LogSection[] = [
-  { id: 'workedOn', label: 'What I worked on today', placeholder: '- Implemented user authentication\n- Fixed API response caching' },
-  { id: 'completed', label: 'What I completed today', placeholder: '- User login flow\n- Password reset endpoint' },
-  { id: 'notCompleted', label: 'What I did not complete', placeholder: '- Email verification\n- Rate limiting' },
-  { id: 'blockers', label: 'Blockers / notes', placeholder: '- Waiting on design specs\n- Need API access from team' },
-];
+import { useState, useEffect } from "react";
+import { useProjectStore } from "@/stores/projectStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Loader2, Save, Calendar as CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 export function DailyLogEditor() {
-  const [values, setValues] = useState<Record<string, string>>({
-    workedOn: '',
-    completed: '',
-    notCompleted: '',
-    blockers: '',
-  });
+    const { dailyLogs, upsertDailyLog, selectedProjectId } = useProjectStore();
+    const [date, setDate] = useState<Date>(new Date());
+    const [loading, setLoading] = useState(false);
 
-  const today = new Date().toISOString().split('T')[0];
+    // Form State
+    const [workedOn, setWorkedOn] = useState("");
+    const [completed, setCompleted] = useState("");
+    const [notCompleted, setNotCompleted] = useState("");
+    const [blockers, setBlockers] = useState("");
+    const [isEdit, setIsEdit] = useState(false);
 
-  const handleChange = (id: string, value: string) => {
-    setValues((prev) => ({ ...prev, [id]: value }));
-  };
+    // Load existing log if any when date changes
+    useEffect(() => {
+        if (!selectedProjectId) return;
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const existing = dailyLogs.find(l => l.log_date === dateStr);
 
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-xs text-muted-foreground">{today}</span>
-          <span className="text-muted-foreground/50">|</span>
-          <span className="font-mono text-xs text-muted-foreground">daily log</span>
+        if (existing) {
+            setWorkedOn(existing.worked_today.join('\n'));
+            setCompleted(existing.completed_today.join('\n'));
+            setNotCompleted(existing.not_completed.join('\n'));
+            setBlockers(existing.blockers.join('\n'));
+            setIsEdit(true);
+        } else {
+            setWorkedOn("");
+            setCompleted("");
+            setNotCompleted("");
+            setBlockers("");
+            setIsEdit(false);
+        }
+    }, [date, dailyLogs, selectedProjectId]);
+
+    const handleSave = async () => {
+        if (!selectedProjectId) return;
+        setLoading(true);
+        try {
+            await upsertDailyLog({
+                log_date: format(date, 'yyyy-MM-dd'),
+                project_id: selectedProjectId,
+                worked_today: workedOn.split('\n').filter(s => s.trim()),
+                completed_today: completed.split('\n').filter(s => s.trim()),
+                not_completed: notCompleted.split('\n').filter(s => s.trim()),
+                blockers: blockers.split('\n').filter(s => s.trim())
+            });
+            toast.success("Daily log saved successfully");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to save daily log");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="space-y-4 max-w-4xl mx-auto">
+            <div className="flex justify-between items-center bg-card p-4 rounded-lg border">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Log Date:</span>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-[200px] pl-3 text-left font-normal">
+                                {date ? format(date, "PPP") : <span>Pick a date</span>}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={(d) => d && setDate(d)}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
+                <Button onClick={handleSave} disabled={loading} className="gap-2">
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {isEdit ? "Update Log" : "Save Log"}
+                </Button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium text-blue-500">Worked On Today</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea
+                            placeholder="- Feature X implementation..."
+                            className="min-h-[150px] font-mono text-sm"
+                            value={workedOn}
+                            onChange={(e) => setWorkedOn(e.target.value)}
+                        />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium text-green-500">Completed</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea
+                            placeholder="- Fixed bug Y..."
+                            className="min-h-[150px] font-mono text-sm"
+                            value={completed}
+                            onChange={(e) => setCompleted(e.target.value)}
+                        />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium text-orange-500">Not Completed / Tomorrow</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea
+                            placeholder="- Refactor Z..."
+                            className="min-h-[150px] font-mono text-sm"
+                            value={notCompleted}
+                            onChange={(e) => setNotCompleted(e.target.value)}
+                        />
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-sm font-medium text-red-500">Blockers</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea
+                            placeholder="- Waiting for API..."
+                            className="min-h-[150px] font-mono text-sm"
+                            value={blockers}
+                            onChange={(e) => setBlockers(e.target.value)}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-primary border border-border hover:border-primary/50 rounded-sm transition-colors">
-          <Save className="w-3 h-3" />
-          Save
-        </button>
-      </div>
-
-      {/* Log Sections */}
-      <div className="grid gap-4">
-        {sections.map((section) => (
-          <div key={section.id} className="space-y-1.5">
-            <label className="block text-xs font-mono text-muted-foreground uppercase tracking-wider">
-              {section.label}
-            </label>
-            <textarea
-              value={values[section.id]}
-              onChange={(e) => handleChange(section.id, e.target.value)}
-              placeholder={section.placeholder}
-              rows={4}
-              className="w-full bg-input border border-border rounded-sm px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none"
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+    );
 }

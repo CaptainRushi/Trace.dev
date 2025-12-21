@@ -1,156 +1,89 @@
-import { useMemo } from 'react';
-import { Flame, TrendingUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-interface ContributionDay {
-  date: string;
-  count: number;
-}
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
+import { useProjectStore } from '@/stores/projectStore';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2, RefreshCw } from "lucide-react";
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export function ContributionGraph() {
-  // Generate last 365 days of mock data
-  const contributions = useMemo(() => {
-    const days: ContributionDay[] = [];
-    const today = new Date();
-    
-    for (let i = 364; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      
-      // Random contribution count (weighted towards 0)
-      const rand = Math.random();
-      let count = 0;
-      if (rand > 0.6) count = Math.floor(Math.random() * 3) + 1;
-      if (rand > 0.85) count = Math.floor(Math.random() * 5) + 3;
-      if (rand > 0.95) count = Math.floor(Math.random() * 8) + 5;
-      
-      days.push({
-        date: date.toISOString().split('T')[0],
-        count,
-      });
-    }
-    
-    return days;
-  }, []);
+  const { stats, refreshStats, selectedProjectId } = useProjectStore();
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Calculate stats
-  const stats = useMemo(() => {
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-    let thisWeek = 0;
-    let thisMonth = 0;
-    
-    const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const monthAgo = new Date(today);
-    monthAgo.setDate(monthAgo.getDate() - 30);
-    
-    for (let i = contributions.length - 1; i >= 0; i--) {
-      const day = contributions[i];
-      const dayDate = new Date(day.date);
-      
-      if (day.count > 0) {
-        tempStreak++;
-        if (i === contributions.length - 1 || contributions[i + 1]?.count > 0) {
-          currentStreak = tempStreak;
-        }
-      } else {
-        if (tempStreak > longestStreak) longestStreak = tempStreak;
-        tempStreak = 0;
-      }
-      
-      if (dayDate >= weekAgo) thisWeek += day.count;
-      if (dayDate >= monthAgo) thisMonth += day.count;
+  const handleRefresh = async () => {
+    if (!selectedProjectId) return;
+    setRefreshing(true);
+    try {
+      await refreshStats(selectedProjectId);
+      toast.success("Stats updated");
+    } catch (error: any) {
+      toast.error("Failed to refresh stats");
+    } finally {
+      setRefreshing(false);
     }
-    
-    if (tempStreak > longestStreak) longestStreak = tempStreak;
-    
-    return { currentStreak, longestStreak, thisWeek, thisMonth };
-  }, [contributions]);
-
-  // Group by weeks
-  const weeks = useMemo(() => {
-    const result: ContributionDay[][] = [];
-    for (let i = 0; i < contributions.length; i += 7) {
-      result.push(contributions.slice(i, i + 7));
-    }
-    return result;
-  }, [contributions]);
-
-  const getIntensity = (count: number) => {
-    if (count === 0) return 'bg-muted/30';
-    if (count <= 2) return 'bg-primary/30';
-    if (count <= 4) return 'bg-primary/50';
-    if (count <= 6) return 'bg-primary/70';
-    return 'bg-primary';
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="border border-border rounded-sm p-4">
-          <div className="flex items-center gap-2 text-primary mb-1">
-            <Flame className="w-4 h-4" />
-            <span className="text-xs font-mono uppercase tracking-wider">Current</span>
-          </div>
-          <div className="font-mono text-2xl text-foreground">{stats.currentStreak}d</div>
-        </div>
-        <div className="border border-border rounded-sm p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-1">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-xs font-mono uppercase tracking-wider">Longest</span>
-          </div>
-          <div className="font-mono text-2xl text-foreground">{stats.longestStreak}d</div>
-        </div>
-        <div className="border border-border rounded-sm p-4">
-          <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1">
-            This Week
-          </div>
-          <div className="font-mono text-2xl text-foreground">{stats.thisWeek}</div>
-        </div>
-        <div className="border border-border rounded-sm p-4">
-          <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1">
-            This Month
-          </div>
-          <div className="font-mono text-2xl text-foreground">{stats.thisMonth}</div>
-        </div>
-      </div>
+  const data = stats.map(s => ({
+    date: s.activity_date,
+    score: s.activity_score
+  }));
 
-      {/* Heatmap */}
-      <div className="border border-border rounded-sm p-4 overflow-x-auto">
-        <div className="flex gap-[3px]">
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="flex flex-col gap-[3px]">
-              {week.map((day, dayIndex) => (
-                <div
-                  key={day.date}
-                  className={cn(
-                    "w-[10px] h-[10px] rounded-[2px]",
-                    getIntensity(day.count)
-                  )}
-                  title={`${day.date}: ${day.count} contributions`}
-                />
-              ))}
-            </div>
-          ))}
+  return (
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div>
+          <CardTitle>Contribution Velocity</CardTitle>
+          <CardDescription>Activity score derived from daily logs</CardDescription>
         </div>
-        
-        {/* Legend */}
-        <div className="flex items-center justify-end gap-2 mt-4">
-          <span className="text-xs font-mono text-muted-foreground">Less</span>
-          <div className="flex gap-[3px]">
-            <div className="w-[10px] h-[10px] rounded-[2px] bg-muted/30" />
-            <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/30" />
-            <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/50" />
-            <div className="w-[10px] h-[10px] rounded-[2px] bg-primary/70" />
-            <div className="w-[10px] h-[10px] rounded-[2px] bg-primary" />
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing}>
+          {refreshing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          Recalculate
+        </Button>
+      </CardHeader>
+      <CardContent className="flex-1 min-h-[300px]">
+        {data.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-muted-foreground border border-dashed rounded-lg">
+            Not enough data to graph
           </div>
-          <span className="text-xs font-mono text-muted-foreground">More</span>
-        </div>
-      </div>
-    </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data}>
+              <defs>
+                <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+                minTickGap={30}
+              />
+              <YAxis
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '4px' }}
+                itemStyle={{ color: '#10b981' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="score"
+                stroke="#10b981"
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#colorScore)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
   );
 }
