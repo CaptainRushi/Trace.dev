@@ -17,7 +17,7 @@ const formSchema = z.object({
     techStack: z.string().optional(), // Comma separated
 });
 
-export function CreateProjectDialog() {
+export function CreateProjectDialog({ trigger }: { trigger?: React.ReactNode }) {
     const [open, setOpen] = useState(false);
     const { createProject, loading } = useProjectStore();
 
@@ -45,9 +45,11 @@ export function CreateProjectDialog() {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                    <Plus className="mr-2 h-4 w-4" /> New Project
-                </Button>
+                {trigger ? trigger : (
+                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                        <Plus className="mr-2 h-4 w-4" /> New Project
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px] bg-card text-card-foreground border-border">
                 <DialogHeader>

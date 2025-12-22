@@ -4,9 +4,11 @@ import { TerminalTabs } from '@/components/tabs/TerminalTabs';
 import { ProjectOverview } from './ProjectOverview';
 import { DailyLogEditor } from '@/components/editors/DailyLogEditor';
 import { APIKeyVault } from '../vault/APIKeyVault';
+import { CodeVault } from '../vault/CodeVault';
 import { DatabaseEditor } from '@/components/editors/DatabaseEditor';
-import { ContributionGraph } from '@/components/charts/ContributionGraph';
+import { TaskHeatmap } from '@/components/charts/TaskHeatmap';
 import { ImprovementsBoard } from '@/components/boards/ImprovementsBoard';
+import { TraceDraw } from '@/components/tracedraw/TraceDraw';
 import { useProjectStore } from '@/stores/projectStore';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
@@ -14,9 +16,11 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 const tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'daily-log', label: 'Daily Log' },
+  { id: 'code-vault', label: 'Code Vault' },
   { id: 'api-keys', label: 'API Keys' },
   { id: 'database', label: 'Database' },
-  { id: 'contributions', label: 'Contributions' },
+  { id: 'tracedraw', label: 'TraceDraw' },
+  { id: 'tasks', label: 'Daily Tasks' },
   { id: 'improvements', label: 'Improvements' },
 ];
 
@@ -44,12 +48,16 @@ export function ProjectContainer() {
         return <ProjectOverview />;
       case 'daily-log':
         return <DailyLogEditor />;
+      case 'code-vault':
+        return <CodeVault />;
       case 'api-keys':
         return <APIKeyVault />;
       case 'database':
         return <DatabaseEditor />;
-      case 'contributions':
-        return <ContributionGraph />;
+      case 'tracedraw':
+        return <TraceDraw />;
+      case 'tasks':
+        return <TaskHeatmap />;
       case 'improvements':
         return <ImprovementsBoard />;
       default:

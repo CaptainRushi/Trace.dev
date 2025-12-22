@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/componen
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Save, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Save, Calendar as CalendarIcon, CheckCircle2, FileEdit } from "lucide-react";
 import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -23,6 +23,7 @@ export function DailyLogEditor() {
     const [completed, setCompleted] = useState("");
     const [notCompleted, setNotCompleted] = useState("");
     const [blockers, setBlockers] = useState("");
+    const [status, setStatus] = useState<'draft' | 'submitted'>('draft');
     const [isEdit, setIsEdit] = useState(false);
 
     // Load existing log if any when date changes
@@ -32,21 +33,23 @@ export function DailyLogEditor() {
         const existing = dailyLogs.find(l => l.log_date === dateStr);
 
         if (existing) {
-            setWorkedOn(existing.worked_today.join('\n'));
-            setCompleted(existing.completed_today.join('\n'));
-            setNotCompleted(existing.not_completed.join('\n'));
-            setBlockers(existing.blockers.join('\n'));
+            setWorkedOn(existing.worked_today?.join('\n') || "");
+            setCompleted(existing.completed_today?.join('\n') || "");
+            setNotCompleted(existing.not_completed?.join('\n') || "");
+            setBlockers(existing.blockers?.join('\n') || "");
+            setStatus(existing.status || 'draft');
             setIsEdit(true);
         } else {
             setWorkedOn("");
             setCompleted("");
             setNotCompleted("");
             setBlockers("");
+            setStatus('draft');
             setIsEdit(false);
         }
     }, [date, dailyLogs, selectedProjectId]);
 
-    const handleSave = async () => {
+    const handleSave = async (newStatus: 'draft' | 'submitted') => {
         if (!selectedProjectId) return;
         setLoading(true);
         try {
@@ -56,9 +59,12 @@ export function DailyLogEditor() {
                 worked_today: workedOn.split('\n').filter(s => s.trim()),
                 completed_today: completed.split('\n').filter(s => s.trim()),
                 not_completed: notCompleted.split('\n').filter(s => s.trim()),
-                blockers: blockers.split('\n').filter(s => s.trim())
+                blockers: blockers.split('\n').filter(s => s.trim()),
+                status: newStatus,
+                submitted_at: newStatus === 'submitted' ? new Date().toISOString() : ((isEdit && status === 'submitted') ? new Date().toISOString() : null)
             });
-            toast.success("Daily log saved successfully");
+            setStatus(newStatus);
+            toast.success(`Daily log ${newStatus === 'submitted' ? 'submitted' : 'saved as draft'}`);
         } catch (error: any) {
             toast.error(error.message || "Failed to save daily log");
         } finally {
@@ -68,7 +74,7 @@ export function DailyLogEditor() {
 
     return (
         <div className="space-y-4 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center bg-card p-4 rounded-lg border">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-card p-4 rounded-lg border gap-4 sm:gap-0">
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Log Date:</span>
                     <Popover>
@@ -87,11 +93,32 @@ export function DailyLogEditor() {
                             />
                         </PopoverContent>
                     </Popover>
+                    {status === 'submitted' && (
+                        <span className="text-xs font-bold text-green-500 bg-green-500/10 px-2 py-1 rounded ml-2 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Submitted
+                        </span>
+                    )}
                 </div>
-                <Button onClick={handleSave} disabled={loading} className="gap-2">
-                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    {isEdit ? "Update Log" : "Save Log"}
-                </Button>
+
+                <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                        variant="outline"
+                        onClick={() => handleSave('draft')}
+                        disabled={loading}
+                        className="gap-2 flex-1 sm:flex-none"
+                    >
+                        <Save className="h-4 w-4" />
+                        Save Draft
+                    </Button>
+                    <Button
+                        onClick={() => handleSave('submitted')}
+                        disabled={loading}
+                        className="gap-2 flex-1 sm:flex-none bg-[#6B3FA0] hover:bg-[#A64DFF] text-white"
+                    >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {status === 'submitted' ? "Update" : "Submit Log"}
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -102,7 +129,7 @@ export function DailyLogEditor() {
                     <CardContent>
                         <Textarea
                             placeholder="- Feature X implementation..."
-                            className="min-h-[150px] font-mono text-sm"
+                            className="min-h-[150px] font-mono text-sm bg-background/50"
                             value={workedOn}
                             onChange={(e) => setWorkedOn(e.target.value)}
                         />
@@ -115,7 +142,7 @@ export function DailyLogEditor() {
                     <CardContent>
                         <Textarea
                             placeholder="- Fixed bug Y..."
-                            className="min-h-[150px] font-mono text-sm"
+                            className="min-h-[150px] font-mono text-sm bg-background/50"
                             value={completed}
                             onChange={(e) => setCompleted(e.target.value)}
                         />
@@ -128,7 +155,7 @@ export function DailyLogEditor() {
                     <CardContent>
                         <Textarea
                             placeholder="- Refactor Z..."
-                            className="min-h-[150px] font-mono text-sm"
+                            className="min-h-[150px] font-mono text-sm bg-background/50"
                             value={notCompleted}
                             onChange={(e) => setNotCompleted(e.target.value)}
                         />
@@ -141,7 +168,7 @@ export function DailyLogEditor() {
                     <CardContent>
                         <Textarea
                             placeholder="- Waiting for API..."
-                            className="min-h-[150px] font-mono text-sm"
+                            className="min-h-[150px] font-mono text-sm bg-background/50"
                             value={blockers}
                             onChange={(e) => setBlockers(e.target.value)}
                         />

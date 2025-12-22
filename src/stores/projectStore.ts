@@ -1,6 +1,7 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export interface Project {
   id: string;
@@ -8,6 +9,7 @@ export interface Project {
   status: 'active' | 'paused' | 'completed';
   tech_stack?: string[];
   repo_url?: string;
+  is_pinned?: boolean;
   created_at?: string;
   // Derived or extra fields
   last_activity?: string;
@@ -23,6 +25,8 @@ export interface DailyLog {
   not_completed: string[];
   blockers: string[];
   created_at?: string;
+  status?: 'draft' | 'submitted';
+  submitted_at?: string;
 }
 
 export interface APIKeyPacket {
@@ -77,6 +81,7 @@ interface ProjectStore {
   fetchProjects: () => Promise<void>;
   createProject: (name: string, repoUrl: string, techStack: string[]) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  togglePin: (id: string) => Promise<void>;
 
   fetchProjectDetails: (projectId: string) => Promise<void>;
 
@@ -126,20 +131,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       return;
     }
 
-    // Transform if necessary or use as is (matching interface)
-    // Supabase returns snake_case, interface keys match those now (mostly).
-    // Status enum needs to match.
     set({ projects: data as any[], loading: false });
   },
 
   createProject: async (name, repoUrl, techStack) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) throw new Error("User not authenticated");
+
+    const { data: profile } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle();
+
+    if (!profile) {
+      console.warn("User profile missing in public.users, attempting to create...");
+      const { error: profileError } = await supabase.from('users').insert({
+        id: user.id,
+        email: user.email
+      });
+
+      if (profileError) {
+        console.error("Failed to create user profile:", profileError);
+        throw new Error(`User profile missing and cannot be created: ${profileError.message}`);
+      }
+    }
 
     const { data, error } = await supabase
       .from('projects')
       .insert({
-        user_id: user.id, // RLS handles this but good to be explicit or let default handle IF default was auth.uid()
+        user_id: user.id,
         name,
         repo_url: repoUrl,
         tech_stack: techStack
@@ -147,16 +164,22 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating project:", error);
+      throw error;
+    }
 
-    // Add to store
     set((state) => ({ projects: [data as any, ...state.projects] }));
 
-    // Create Container
-    await supabase.from('project_containers').insert({
+    const { error: containerError } = await supabase.from('project_containers').insert({
       project_id: data.id,
       user_id: user.id
     });
+
+    if (containerError) {
+      console.error("Error creating project container:", containerError);
+      toast.error("Project created but container initialization failed");
+    }
   },
 
   deleteProject: async (id) => {
@@ -169,8 +192,25 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     }));
   },
 
+  togglePin: async (id) => {
+    const project = get().projects.find(p => p.id === id);
+    if (!project) return;
+
+    const newPinned = !project.is_pinned;
+
+    set((state) => ({
+      projects: state.projects.map(p => p.id === id ? { ...p, is_pinned: newPinned } : p)
+    }));
+
+    const { error } = await supabase.from('projects').update({ is_pinned: newPinned }).eq('id', id);
+    if (error) {
+      console.error("Failed to pin project:", error);
+      toast.error("Update failed");
+      get().fetchProjects();
+    }
+  },
+
   fetchProjectDetails: async (projectId) => {
-    // Parallel fetch for a specific project
     set({ loading: true });
 
     const [logs, keys, docs, imp, st] = await Promise.all([
@@ -204,14 +244,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         worked_today: log.worked_today,
         completed_today: log.completed_today,
         not_completed: log.not_completed,
-        blockers: log.blockers
+        blockers: log.blockers,
+        status: log.status,
+        submitted_at: log.submitted_at
       }, { onConflict: 'project_id, log_date' })
       .select()
       .single();
 
     if (error) throw error;
 
-    // Update local state
     set((state) => {
       const index = state.dailyLogs.findIndex(l => l.id === data.id);
       if (index >= 0) {
@@ -225,13 +266,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   fetchApiKeys: async (projectId) => {
-    // Already handled in fetchProjectDetails but can be standalone
     const { data } = await supabase.from('api_key_packets').select('*').eq('project_id', projectId);
     set({ apiKeys: data as any[] || [] });
   },
 
   createApiKey: async (projectId, platform, env, payload) => {
-    // 1. Call Edge Function to encrypt
     const { data: envData, error: funcError } = await supabase.functions.invoke('encrypt-packet', {
       body: { payload }
     });
@@ -240,7 +279,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 2. Insert into DB
     const { data, error } = await supabase
       .from('api_key_packets')
       .insert({
@@ -272,10 +310,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const { data, error } = await supabase
       .from('database_docs')
       .upsert({
-        // If ID exists, it updates. If we only have 1 doc per project, strictly we should find ID or use a unique constraint, 
-        // but schema only had unique(project_id) implicitly if we limit logic. Schema didn't enforce unique(project_id) for db_docs but it makes sense 1:1.
-        // Logic check: "One database doc per project"?
-        // I'll query existing first or assume ID passed if updating.
         ...(doc.id ? { id: doc.id } : {}),
         user_id: user.id,
         project_id: pid,
@@ -283,8 +317,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         schema_notes: doc.schema_notes,
         migration_notes: doc.migration_notes,
         table_notes: doc.table_notes
-      }) // Note: Without unique constraint on project_id, upsert without ID inserts new. 
-      // I will check if one exists first in `fetchProjectDetails` and pass ID.
+      })
       .select()
       .single();
 
@@ -318,13 +351,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   refreshStats: async (projectId) => {
-    // Call Edge Function
     const { error } = await supabase.functions.invoke('calculate-stats', {
-      body: { project_id: projectId } // optionally date
+      body: { project_id: projectId }
     });
     if (error) throw error;
 
-    // Refresh local
     const { data } = await supabase.from('contribution_stats').select('*').eq('project_id', projectId).order('activity_date', { ascending: true });
     set({ stats: data as any[] || [] });
   }

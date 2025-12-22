@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Dashboard } from './Dashboard';
+import Dashboard from './Dashboard';
 import { ProjectContainer } from '@/components/project/ProjectContainer';
 import { useProjectStore } from '@/stores/projectStore';
 

@@ -1,17 +1,21 @@
-import { Plus, FolderCode, Circle } from 'lucide-react';
+import { Plus, FolderCode, Circle, LogOut } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { UserDashboardTrigger } from './UserDashboardTrigger';
+import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog';
 
 export function Sidebar() {
   const { projects, selectedProjectId, setSelectedProject } = useProjectStore();
 
   return (
     <aside className="w-56 h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
-      {/* Logo */}
-      <div className="h-12 px-4 flex items-center border-b border-sidebar-border">
+      {/* Logo & User Dashboard */}
+      <div className="h-12 px-4 flex items-center justify-between border-b border-sidebar-border">
         <span className="font-mono text-sm font-semibold text-primary tracking-tight">
-          ./devtrack
+          Trace.dev
         </span>
+        <UserDashboardTrigger />
       </div>
 
       {/* Projects List */}
@@ -21,7 +25,7 @@ export function Sidebar() {
             Projects
           </span>
         </div>
-        
+
         <nav className="space-y-0.5 px-2">
           {projects.map((project) => (
             <button
@@ -48,10 +52,22 @@ export function Sidebar() {
       </div>
 
       {/* New Project Button */}
-      <div className="p-2 border-t border-sidebar-border">
-        <button className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-mono border border-dashed border-sidebar-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors rounded-sm">
-          <Plus className="w-3.5 h-3.5" />
-          New Project
+      <div className="p-2 border-t border-sidebar-border gap-2 flex flex-col">
+        <CreateProjectDialog
+          trigger={
+            <button className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-mono border border-dashed border-sidebar-border text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors rounded-sm">
+              <Plus className="w-3.5 h-3.5" />
+              New Project
+            </button>
+          }
+        />
+
+        <button
+          onClick={() => supabase.auth.signOut()}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-mono text-muted-foreground hover:bg-sidebar-accent/50 hover:text-foreground transition-colors rounded-sm"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          Log Out
         </button>
       </div>
     </aside>
