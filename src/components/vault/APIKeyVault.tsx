@@ -14,7 +14,20 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 const PLATFORMS = [
-    'OpenAI', 'Supabase', 'Razorpay', 'Stripe', 'AWS', 'Google Cloud', 'GitHub', 'Custom'
+    // AI & ML
+    'OpenAI', 'Anthropic', 'Google Gemini', 'Hugging Face', 'Replicate', 'Pinecone', 'Cohere', 'Mistral AI', 'Stability AI', 'Together AI', 'Perplexity',
+    // Cloud & Infra
+    'Supabase', 'AWS', 'Google Cloud', 'Azure', 'Cloudflare', 'Vercel', 'Netlify', 'DigitalOcean', 'Heroku',
+    // Auth & Database
+    'Firebase', 'Auth0', 'Clerk', 'MongoDB', 'Redis', 'PlanetScale', 'Neon',
+    // Payments
+    'Stripe', 'Razorpay', 'Lemon Squeezy', 'PayPal',
+    // Communication
+    'Twilio', 'SendGrid', 'Mailgun', 'Slack', 'Discord', 'Resend',
+    // Tools & Monitoring
+    'GitHub', 'GitLab', 'Sentry', 'PostHog', 'Datadog', 'Linear',
+    // Other
+    'Custom'
 ];
 
 export function APIKeyVault() {

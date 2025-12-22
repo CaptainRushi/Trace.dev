@@ -10,10 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileCode, Plus, Save, Box, Code, Clock, AlertCircle, Copy, Trash2, GitCompare, ArrowLeft, Github } from 'lucide-react';
+import { FileCode, Plus, Save, Box, Code, Clock, AlertCircle, Copy, Trash2, GitCompare, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { ImportGithubDialog } from './ImportGithubDialog';
 
 const LANGUAGES = [
     { label: 'JavaScript', value: 'javascript' },
@@ -41,7 +40,6 @@ export function CodeVault() {
     const [isCreating, setIsCreating] = useState(false);
     const [newContainerName, setNewContainerName] = useState("");
     const [newContainerLang, setNewContainerLang] = useState("javascript");
-    const [isImporting, setIsImporting] = useState(false);
 
     // Editor State
     const [editorContent, setEditorContent] = useState("");
@@ -157,13 +155,6 @@ export function CodeVault() {
                             <Box className="w-4 h-4" /> Code Vault
                         </CardTitle>
                         <div className="flex items-center gap-1">
-                            <Button
-                                size="icon" variant="ghost" className="h-6 w-6"
-                                onClick={() => setIsImporting(true)}
-                                title="Import from GitHub"
-                            >
-                                <Github className="w-4 h-4" />
-                            </Button>
                             <Dialog open={isCreating} onOpenChange={setIsCreating}>
                                 <DialogTrigger asChild>
                                     <Button size="icon" variant="ghost" className="h-6 w-6"><Plus className="w-4 h-4" /></Button>
@@ -420,15 +411,6 @@ export function CodeVault() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            {selectedProjectId && (
-                <ImportGithubDialog
-                    open={isImporting}
-                    onOpenChange={setIsImporting}
-                    projectId={selectedProjectId}
-                    onImportSuccess={() => selectedProjectId && fetchContainers(selectedProjectId)}
-                />
-            )}
         </div>
     );
 }

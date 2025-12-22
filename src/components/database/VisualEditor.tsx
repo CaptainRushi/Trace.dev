@@ -1,10 +1,11 @@
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useSchemaStore } from '@/stores/schemaStore';
 import { cn } from '@/lib/utils';
-import { GripVertical, Key, Plus, Trash2, X, Link } from 'lucide-react';
+import { GripVertical, Key, Plus, Trash2, X, Link, ArrowRight, Ban, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 export function VisualEditor() {
     const {
@@ -28,9 +29,31 @@ export function VisualEditor() {
 
     // Mouse tracking for connecting line
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+    const [hoveredColumn, setHoveredColumn] = useState<{ tableId: string, colId: string } | null>(null);
+
+    // --- Helpers for Precise Anchors ---
+
+    const COLUMN_HEIGHT = 28;
+    const HEADER_HEIGHT = 41; // p-2 is 8px top/bot + 24px content + 1px border = approx 41
+    const TABLE_WIDTH = 256;
+
+    const getAnchorPoint = (tableId: string, colId: string, side: 'left' | 'right') => {
+        const table = tables.find(t => t.id === tableId);
+        if (!table) return { x: 0, y: 0 };
+
+        const colIndex = table.columns.findIndex(c => c.id === colId);
+        if (colIndex === -1) return { x: 0, y: 0 };
+
+        const x = side === 'left' ? table.position.x : table.position.x + TABLE_WIDTH;
+        const y = table.position.y + HEADER_HEIGHT + (colIndex * COLUMN_HEIGHT) + (COLUMN_HEIGHT / 2);
+
+        return { x, y };
+    };
+
+    // --- Interaction Handlers ---
 
     const handlePointerDown = (e: React.PointerEvent, id: string, type: 'table' | 'canvas') => {
-        if (activeTool === 'connect') return; // Click handled on columns
+        if (activeTool === 'connect') return; // Click handled on columns/anchors for connect tool
 
         if (type === 'table') {
             e.stopPropagation();
@@ -93,58 +116,66 @@ export function VisualEditor() {
         if (activeTool === 'connect') {
             if (!connectSource) {
                 startConnect(tableId, columnId);
+                toast.info("Select target column to connect");
             } else {
+                // Determine compatibility, prevent self-connection if needed (though self-ref is valid sql)
+                if (connectSource.tableId === tableId && connectSource.columnId === columnId) {
+                    toast.error("Cannot connect column to itself");
+                    return;
+                }
                 completeConnect(tableId, columnId);
+                setHoveredColumn(null);
             }
         } else {
             // Select column specifically?
-            selectItem(tableId, 'table'); // For now just select table
+            selectItem(tableId, 'table');
         }
     };
 
     // Calculate Relation Lines
     const getRelationPath = (rel: typeof relations[0]) => {
-        const fromTable = tables.find(t => t.id === rel.fromTableId);
-        const toTable = tables.find(t => t.id === rel.toTableId);
-        if (!fromTable || !toTable) return '';
+        const p1 = getAnchorPoint(rel.fromTableId, rel.fromColumnId, 'right');
+        const p2 = getAnchorPoint(rel.toTableId, rel.toColumnId, 'left');
 
-        // Estimate column offsets (approximate height logic)
-        const headerHeight = 40;
-        const rowHeight = 28;
-
-        const fromIdx = fromTable.columns.findIndex(c => c.id === rel.fromColumnId);
-        const toIdx = toTable.columns.findIndex(c => c.id === rel.toColumnId);
-
-        const x1 = fromTable.position.x + 256; // Right side
-        const y1 = fromTable.position.y + headerHeight + (fromIdx * rowHeight) + (rowHeight / 2);
-
-        const x2 = toTable.position.x; // Left side
-        const y2 = toTable.position.y + headerHeight + (toIdx * rowHeight) + (rowHeight / 2);
+        if (p1.x === 0 || p2.x === 0) return ''; // Invalid anchor
 
         // Bezier
-        const cx1 = x1 + 50;
-        const cx2 = x2 - 50;
+        const cx1 = p1.x + 50;
+        const cx2 = p2.x - 50;
 
-        return `M ${x1} ${y1} C ${cx1} ${y1}, ${cx2} ${y2}, ${x2} ${y2}`;
+        return `M ${p1.x} ${p1.y} C ${cx1} ${p1.y}, ${cx2} ${p2.y}, ${p2.x} ${p2.y}`;
     };
 
     // Temp Line
     const getTempLine = () => {
         if (!connectSource) return null;
-        const fromTable = tables.find(t => t.id === connectSource.tableId);
-        if (!fromTable) return null;
 
-        const idx = fromTable.columns.findIndex(c => c.id === connectSource.columnId);
-        const headerHeight = 40;
-        const rowHeight = 28;
+        const p1 = getAnchorPoint(connectSource.tableId, connectSource.columnId, 'right');
 
-        const x1 = fromTable.position.x + 256;
-        const y1 = fromTable.position.y + headerHeight + (idx * rowHeight) + (rowHeight / 2);
+        // Snapping logic if hovering a valid target
+        let p2 = { x: mousePos.x, y: mousePos.y };
+        let isValidTarget = false;
 
-        const x2 = mousePos.x;
-        const y2 = mousePos.y;
+        if (hoveredColumn) {
+            const snapPoint = getAnchorPoint(hoveredColumn.tableId, hoveredColumn.colId, 'left');
+            if (snapPoint.x !== 0) {
+                p2 = snapPoint;
+                isValidTarget = true;
+            }
+        }
 
-        return <path d={`M ${x1} ${y1} L ${x2} ${y2}`} stroke="#6366f1" strokeWidth="2" strokeDasharray="5,5" fill="none" />;
+        const strokeColor = isValidTarget ? "#22c55e" : "#6366f1"; // Green if valid snap, else blue
+
+        return (
+            <path
+                d={`M ${p1.x} ${p1.y} L ${p2.x} ${p2.y}`}
+                stroke={strokeColor}
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                fill="none"
+                markerEnd={isValidTarget ? "url(#arrowhead-green)" : ""}
+            />
+        );
     };
 
     const gridSize = 20 * scale;
@@ -176,18 +207,27 @@ export function VisualEditor() {
                 }}
             >
                 {/* Relations Layer */}
-                <svg className="absolute inset-0 overflow-visible w-full h-full pointer-events-none">
+                <svg className="absolute inset-0 overflow-visible w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
                     <defs>
                         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                             <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
                         </marker>
+                        <marker id="arrowhead-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e" />
+                        </marker>
                     </defs>
                     {relations.map(rel => (
                         <g key={rel.id} className="pointer-events-auto cursor-pointer group" onClick={(e) => { e.stopPropagation(); selectItem(rel.id, 'relation'); }}>
-                            <path
+                            <path // Hover target (invisible but thick)
+                                d={getRelationPath(rel)}
+                                stroke="transparent"
+                                strokeWidth="15"
+                                fill="none"
+                            />
+                            <path // Visible line
                                 d={getRelationPath(rel)}
                                 stroke={selectedItemId === rel.id ? "#6366f1" : "#64748b"}
-                                strokeWidth="2"
+                                strokeWidth={selectedItemId === rel.id ? "3" : "2"}
                                 fill="none"
                                 markerEnd="url(#arrowhead)"
                                 className="group-hover:stroke-indigo-400 transition-colors"
@@ -213,14 +253,13 @@ export function VisualEditor() {
                     >
                         {/* Header */}
                         <div className={cn(
-                            "flex items-center justify-between p-2 border-b border-border/50 rounded-t-lg",
+                            "flex items-center justify-between p-2 border-b border-border/50 rounded-t-lg h-[41px]",
                             activeTool === 'connect' ? "bg-muted/10" : "bg-muted/30 cursor-grab active:cursor-grabbing"
                         )}>
                             <div className="flex items-center gap-2 font-mono font-medium text-sm truncate">
                                 <GripVertical className="w-4 h-4 text-muted-foreground" />
                                 <span className="truncate">{table.name}</span>
                             </div>
-                            {/* Inline delete only if selected to reduce clutter? Or hover? */}
                             <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
                                 onPointerDown={(e) => { e.stopPropagation(); deleteTable(table.id); }}
                             >
@@ -229,41 +268,65 @@ export function VisualEditor() {
                         </div>
 
                         {/* Columns */}
-                        <div className="p-2 space-y-1 bg-card rounded-b-lg">
-                            {table.columns.map(col => {
+                        <div className="p-0 bg-card rounded-b-lg">
+                            {table.columns.map((col, index) => {
                                 const isSource = connectSource?.tableId === table.id && connectSource?.columnId === col.id;
+                                const isHovered = hoveredColumn?.tableId === table.id && hoveredColumn?.colId === col.id;
+
+                                // Only show hover effect for valid targets during connection
+                                const isValidTarget = activeTool === 'connect' && connectSource && !isSource;
+                                const showHover = activeTool === 'connect' && (!connectSource || isValidTarget);
+
                                 return (
                                     <div
                                         key={col.id}
                                         className={cn(
-                                            "flex items-center justify-between text-xs p-1.5 rounded transition-colors group/col relative",
-                                            activeTool === 'connect' ? "hover:bg-indigo-500/20 cursor-pointer" : "hover:bg-muted/50",
-                                            isSource && "bg-indigo-500/30 ring-1 ring-indigo-500"
+                                            "flex items-center justify-between text-xs px-2 h-[28px] border-b border-transparent transition-colors group/col relative",
+                                            index === table.columns.length - 1 ? "rounded-b-lg" : "",
+                                            showHover && "hover:bg-muted/50 cursor-crosshair",
+                                            isSource && "bg-indigo-500/20",
+                                            isHovered && isValidTarget && "bg-green-500/20"
                                         )}
                                         onClick={(e) => handleColumnClick(e, table.id, col.id)}
+                                        onMouseEnter={() => activeTool === 'connect' && setHoveredColumn({ tableId: table.id, colId: col.id })}
+                                        onMouseLeave={() => setHoveredColumn(null)}
                                     >
                                         <div className="flex items-center gap-2 flex-1 overflow-hidden pointer-events-none">
                                             {col.isPk && <Key className="w-3 h-3 text-yellow-500 shrink-0" />}
                                             <span className={cn("truncate font-medium", col.isPk && "text-yellow-500")}>{col.name}</span>
-                                            <span className="text-[10px] text-muted-foreground">{col.type}</span>
+                                            <span className="text-[10px] text-muted-foreground ml-auto">{col.type}</span>
                                         </div>
 
-                                        {/* Connection Handle indicator */}
+                                        {/* Anchors Visuals */}
                                         {activeTool === 'connect' && (
-                                            <div className="absolute right-2 opacity-0 group-hover/col:opacity-100 transition-opacity">
-                                                <Link className="w-3 h-3 text-indigo-400" />
-                                            </div>
+                                            <>
+                                                {/* Left Anchor (Target) */}
+                                                <div className={cn(
+                                                    "absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full",
+                                                    (isHovered && isValidTarget) ? "bg-green-500 ring-2 ring-green-500/50" : "bg-transparent"
+                                                )} />
+
+                                                {/* Right Anchor (Source) */}
+                                                <div className={cn(
+                                                    "absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full transition-all",
+                                                    isSource ? "bg-indigo-500 ring-2 ring-indigo-500/50 scale-125" :
+                                                        !connectSource ? "bg-muted-foreground/30 opacity-0 group-hover/col:opacity-100 group-hover/col:scale-110" : "bg-transparent"
+                                                )} />
+                                            </>
                                         )}
 
                                         {/* FK Indicator */}
                                         {relations.some(r => r.fromTableId === table.id && r.fromColumnId === col.id) && (
-                                            <div className="absolute right-1 top-1.5">
-                                                <Badge variant="outline" className="text-[8px] h-3 px-1 border-indigo-500/50 text-indigo-400 bg-indigo-500/10">FK</Badge>
-                                            </div>
+                                            <ArrowRight className="w-3 h-3 text-indigo-400 absolute right-1 opacity-50" />
                                         )}
                                     </div>
                                 );
                             })}
+
+                            {/* Add Column Placeholder (Visual Only for now) */}
+                            <div className="h-[28px] flex items-center justify-center text-muted-foreground/30 hover:bg-muted/20 cursor-not-allowed">
+                                <Plus className="w-3 h-3" />
+                            </div>
                         </div>
                     </div>
                 ))}
@@ -276,6 +339,13 @@ export function VisualEditor() {
                         <p className="text-lg font-medium">Empty Canvas</p>
                         <p className="text-sm">Click "Add Table" to start designing.</p>
                     </div>
+                </div>
+            )}
+
+            {/* Tooltip for Connect Mode */}
+            {activeTool === 'connect' && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm border border-white/10 pointer-events-none shadow-lg animate-in fade-in slide-in-from-bottom-2">
+                    {connectSource ? `Select target column in another table` : `Select a source column to start connection`}
                 </div>
             )}
         </div>

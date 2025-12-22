@@ -1,3 +1,4 @@
+
 import { Plus, FolderCode, Circle, LogOut } from 'lucide-react';
 import { useProjectStore } from '@/stores/projectStore';
 import { cn } from '@/lib/utils';
@@ -12,9 +13,12 @@ export function Sidebar() {
     <aside className="w-56 h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo & User Dashboard */}
       <div className="h-12 px-4 flex items-center justify-between border-b border-sidebar-border">
-        <span className="font-mono text-sm font-semibold text-primary tracking-tight">
-          Trace.dev
-        </span>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Trace.dev" className="h-5 w-auto max-w-[24px] object-contain" />
+          <span className="font-mono text-sm font-semibold text-primary tracking-tight">
+            Trace.dev
+          </span>
+        </div>
         <UserDashboardTrigger />
       </div>
 

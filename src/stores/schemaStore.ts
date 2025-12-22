@@ -157,12 +157,22 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
 
     addTable: (x, y) => {
         get().saveSnapshot();
+        const newState = get();
+        // Generate unique name
+        let name = 'new_table';
+        let counter = 1;
+        while (newState.tables.some(t => t.name === name)) {
+            name = `new_table_${counter}`;
+            counter++;
+        }
+
         const newTable: Table = {
             id: crypto.randomUUID(),
-            name: 'new_table',
+            name: name,
             position: { x, y },
             columns: [
-                { id: crypto.randomUUID(), name: 'id', type: 'uuid', isPk: true, isUnique: true, isNullable: false, defaultValue: 'uuid_generate_v4()' },
+                { id: crypto.randomUUID(), name: 'id', type: 'uuid', isPk: true, isUnique: true, isNullable: false, defaultValue: 'gen_random_uuid()' },
+                { id: crypto.randomUUID(), name: 'created_at', type: 'timestamptz', isPk: false, isUnique: false, isNullable: false, defaultValue: 'now()' }
             ]
         };
         set(state => ({ tables: [...state.tables, newTable], selectedItemId: newTable.id, selectedItemType: 'table' }));
@@ -178,8 +188,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     },
 
     updateTablePosition: (id, x, y) => {
-        // No snapshot for drag to avoid spam, or debounce it. 
-        // For simplicity, we skip snapshot here implicitly or handle it on drag start/end.
+        // No snapshot for drag
         set(state => ({
             tables: state.tables.map(t => t.id === id ? { ...t, position: { x, y } } : t)
         }));
@@ -200,11 +209,19 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         set(state => ({
             tables: state.tables.map(t => {
                 if (t.id !== tableId) return t;
+
+                let name = 'new_column';
+                let counter = 1;
+                while (t.columns.some(c => c.name === name)) {
+                    name = `new_column_${counter}`;
+                    counter++;
+                }
+
                 return {
                     ...t,
                     columns: [...t.columns, {
                         id: crypto.randomUUID(),
-                        name: 'new_column',
+                        name: name,
                         type: 'text',
                         isPk: false,
                         isNullable: true,
@@ -222,6 +239,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
         set(state => ({
             tables: state.tables.map(t => {
                 if (t.id !== tableId) return t;
+
                 return {
                     ...t,
                     columns: t.columns.map(c => c.id === columnId ? { ...c, ...updates } : c)
@@ -241,7 +259,7 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
                     columns: t.columns.filter(c => c.id !== columnId)
                 };
             }),
-            // Remove relations linked to this column
+            // Cascading delete for relations
             relations: state.relations.filter(r => r.fromColumnId !== columnId && r.toColumnId !== columnId)
         }));
         get().syncVisualToSql();
@@ -252,17 +270,34 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
     },
 
     completeConnect: (tableId, columnId) => {
-        const { connectSource, relations } = get();
+        const { connectSource, relations, tables } = get();
         if (!connectSource) return;
 
-        // Prevent self-reference loops mostly? Or valid for hierarchy.
-        // Prevent duplicate relation
+        // Validation 1: Prevent Self-Constraint on same column
+        if (connectSource.tableId === tableId && connectSource.columnId === columnId) return;
+
+        // Validation 2: Check for duplicate relationship
         const exists = relations.find(r =>
             r.fromTableId === connectSource.tableId && r.fromColumnId === connectSource.columnId &&
             r.toTableId === tableId && r.toColumnId === columnId
         );
-
         if (exists) {
+            set({ connectSource: null, activeTool: 'select' });
+            return;
+        }
+
+        // Validation 3: Type Compatibility
+        const sourceTable = tables.find(t => t.id === connectSource.tableId);
+        const targetTable = tables.find(t => t.id === tableId);
+        const sourceCol = sourceTable?.columns.find(c => c.id === connectSource.columnId);
+        const targetCol = targetTable?.columns.find(c => c.id === columnId);
+
+        if (!sourceCol || !targetCol) return;
+
+        const normalizeType = (t: string) => t.toLowerCase().replace('character varying', 'text').replace('varchar', 'text');
+
+        if (normalizeType(sourceCol.type) !== normalizeType(targetCol.type)) {
+            console.warn(`Type mismatch: ${sourceCol.type} vs ${targetCol.type}`);
             set({ connectSource: null, activeTool: 'select' });
             return;
         }
@@ -305,15 +340,20 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
 
             const colDefs = table.columns.map(col => {
                 const parts = [`  ${col.name} ${col.type}`];
-                if (!col.isNullable) parts.push('NOT NULL');
-                if (col.defaultValue) parts.push(`DEFAULT ${col.defaultValue}`);
-                if (col.isPk) parts.push('PRIMARY KEY');
-                if (col.isUnique && !col.isPk) parts.push('UNIQUE');
+
+                if (col.isPk) {
+                    parts.push('PRIMARY KEY');
+                } else {
+                    if (!col.isNullable) parts.push('NOT NULL');
+                    if (col.isUnique) parts.push('UNIQUE');
+                }
+
+                if (col.defaultValue && col.defaultValue.trim() !== '') {
+                    parts.push(`DEFAULT ${col.defaultValue}`);
+                }
+
                 return parts.join(' ');
             });
-
-            // Inline foreign keys based on relations? Or ALTER TABLE?
-            // Usually ALTER is safer for ordering.
 
             sql += colDefs.join(',\n');
             sql += '\n);\n\n';
@@ -326,7 +366,11 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
             const toCol = toTable?.columns.find(c => c.id === rel.toColumnId);
 
             if (fromTable && toTable && fromCol && toCol) {
-                sql += `ALTER TABLE ${fromTable.name} ADD CONSTRAINT fk_${fromTable.name}_${fromCol.name} FOREIGN KEY (${fromCol.name}) REFERENCES ${toTable.name}(${toCol.name});\n`;
+                const constraintName = `fk_${fromTable.name}_${fromCol.name}__${toTable.name}_${toCol.name}`;
+                sql += `ALTER TABLE ${fromTable.name}\n`;
+                sql += `  ADD CONSTRAINT ${constraintName}\n`;
+                sql += `  FOREIGN KEY (${fromCol.name})\n`;
+                sql += `  REFERENCES ${toTable.name} (${toCol.name});\n\n`;
             }
         });
 
@@ -335,8 +379,5 @@ export const useSchemaStore = create<SchemaStore>((set, get) => ({
 
     syncSqlToVisual: (sqlInput) => {
         set({ sql: sqlInput });
-        // Parser logic remains basic due to complexity
-        // We will skip re-implementing full parser here to focus on visual tools first.
-        // Reference previous step for basic parser if needed, but "sync rules" say conflict block.
     }
 }));

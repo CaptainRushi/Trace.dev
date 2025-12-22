@@ -2,12 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useProjectStore } from '@/stores/projectStore';
 import { useTaskStore } from '@/stores/taskStore';
-import { QuickStatus, TodaysFocus, RecentActivity, ActivityItem } from '@/components/dashboard/OverviewComponents';
+import { QuickStatus, RecentActivity, ActivityItem } from '@/components/dashboard/OverviewComponents';
 import { supabase } from '@/integrations/supabase/client';
 import { TaskHeatmap } from "@/components/charts/TaskHeatmap";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Info, Github, Layers, Calendar, Globe } from 'lucide-react';
+import { Info, Github, Layers, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 
 export function ProjectOverview() {
@@ -132,7 +132,6 @@ export function ProjectOverview() {
     t.completed_at?.startsWith(todayStr)
   ).length;
   const hasLog = heatmapData.some(h => h.date === todayStr && h.logCount > 0);
-  const projectTasks = tasks.map(t => ({ ...t, project_name: project.name }));
 
   return (
     <div className="space-y-8 animate-in fade-in pb-10">
@@ -152,31 +151,18 @@ export function ProjectOverview() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left: Info & Focus */}
+        {/* Left: Info */}
         <div className="lg:col-span-2 space-y-8">
           <ProjectInfoCard project={project} />
-          <TodaysFocus
-            tasks={projectTasks}
-            onToggle={toggleTaskStatus}
-            onAdd={async (title) => {
-              if (selectedProjectId) {
-                const newTask = await createTask(selectedProjectId, title);
-                if (newTask) {
-                  const today = format(new Date(), 'yyyy-MM-dd');
-                  await scheduleTask(newTask.id, today);
-                }
-              }
-            }}
-          />
+          <div className="pt-4 border-t border-border/40">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">Project Snapshot</h3>
+            <TaskHeatmap />
+          </div>
         </div>
 
         {/* Right: Feed & Heatmap */}
         <div className="space-y-8">
           <RecentActivity activities={activities} />
-          <div className="pt-4">
-            <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider">Project Snapshot</h3>
-            <TaskHeatmap />
-          </div>
         </div>
       </div>
     </div>
