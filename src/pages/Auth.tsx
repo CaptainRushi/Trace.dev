@@ -19,46 +19,51 @@ export default function Auth() {
     const [password, setPassword] = useState("");
 
     useEffect(() => {
-        // Handle OAuth callback - check for hash fragment
-        const handleOAuthCallback = async () => {
-            // Check if this is an OAuth callback (has hash with access_token)
-            const hashParams = new URLSearchParams(window.location.hash.substring(1));
-            if (hashParams.get('access_token')) {
-                // Let Supabase process the hash
-                setCheckingSession(true);
-            }
+        let mounted = true;
 
-            // Check current session
+        const checkSession = async () => {
             const { data: { session }, error } = await supabase.auth.getSession();
 
             if (error) {
                 console.error('Session check error:', error);
-                setCheckingSession(false);
+                if (mounted) setCheckingSession(false);
                 return;
             }
 
             if (session) {
-                // User is logged in, redirect to home
-                navigate("/", { replace: true });
+                if (mounted) navigate("/", { replace: true });
             } else {
-                setCheckingSession(false);
+                // If there's no session and no hash params, we can stop the loading state
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                if (!hashParams.get('access_token')) {
+                    if (mounted) setCheckingSession(false);
+                }
+                // If there IS an access_token, we stay in 'checkingSession' state 
+                // and let onAuthStateChange handle the SIGNED_IN event
             }
         };
 
-        handleOAuthCallback();
+        checkSession();
 
-        // Listen for auth state changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             console.log('Auth event:', event);
-            if (event === 'SIGNED_IN' && session) {
-                navigate("/", { replace: true });
-            }
-            if (event === 'SIGNED_OUT') {
-                setCheckingSession(false);
+            if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') && session) {
+                if (mounted) navigate("/", { replace: true });
+            } else if (event === 'SIGNED_OUT') {
+                if (mounted) setCheckingSession(false);
             }
         });
 
-        return () => subscription.unsubscribe();
+        // Safety timeout: if we're still checking session after 5 seconds, stop.
+        const timeout = setTimeout(() => {
+            if (mounted) setCheckingSession(false);
+        }, 5000);
+
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+            clearTimeout(timeout);
+        };
     }, [navigate]);
 
     // Show loading while checking session (especially after OAuth redirect)
