@@ -1,5 +1,5 @@
 
-import { Plus, FolderCode, Circle, LogOut, Crown, RefreshCw } from 'lucide-react';
+import { Plus, FolderCode, Circle, LogOut, Crown, RefreshCw, Book } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/stores/projectStore';
 import { usePlanStore } from '@/stores/planStore';
@@ -96,6 +96,14 @@ export function Sidebar() {
         >
           <Crown className="w-3.5 h-3.5" />
           {isPaid ? (['monthly', 'starter'].includes(currentPlan) ? 'Monthly Plan' : 'Yearly Plan') : 'Upgrade Plan'}
+        </button>
+
+        <button
+          onClick={() => navigate('/docs')}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-mono border border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 transition-colors rounded-sm"
+        >
+          <Book className="w-3.5 h-3.5" />
+          Help & Docs
         </button>
 
         <button
