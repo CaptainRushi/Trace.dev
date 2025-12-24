@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useUserStore } from '@/stores/userStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useProjectStore } from '@/stores/projectStore';
+import { usePlanStore } from '@/stores/planStore';
 import { ActiveProjectsPanel } from "@/components/dashboard/ActiveProjectsPanel";
 import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog';
 import { ProfileSection } from '@/components/dashboard/ProfileSection';
@@ -13,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 export default function Dashboard() {
   const { fetchTasks } = useTaskStore();
   const { fetchProjects, projects } = useProjectStore();
+  const { fetchPlan } = usePlanStore();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,7 +23,8 @@ export default function Dashboard() {
       try {
         await Promise.all([
           fetchProjects(),
-          fetchTasks()
+          fetchTasks(),
+          fetchPlan()
         ]);
       } catch (error) {
         console.error("Dashboard Load Error:", error);

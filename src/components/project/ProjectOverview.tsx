@@ -53,72 +53,80 @@ export function ProjectOverview() {
   const fetchProjectActivity = async () => {
     if (!selectedProjectId) return;
 
-    const { data: recentTasks } = await supabase.from('tasks')
-      .select('id, title, completed_at, project_id, projects(name)')
-      .eq('project_id', selectedProjectId)
-      .eq('status', 'completed')
-      .order('completed_at', { ascending: false })
-      .limit(5);
+    try {
+      const [
+        { data: recentTasks },
+        { data: recentCode },
+        { data: recentKeys },
+        { data: recentLogs }
+      ] = await Promise.all([
+        supabase.from('tasks')
+          .select('id, title, completed_at, project_id, projects(name)')
+          .eq('project_id', selectedProjectId)
+          .eq('status', 'completed')
+          .order('completed_at', { ascending: false })
+          .limit(5),
+        supabase.from('code_files')
+          .select('id, filename, version, created_at, code_containers!inner(project_id, projects(name))')
+          .eq('code_containers.project_id', selectedProjectId)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase.from('api_key_packets') // Corrected table name
+          .select('id, platform_name, created_at, project_id, projects(name)')
+          .eq('project_id', selectedProjectId)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase.from('daily_logs')
+          .select('id, log_date, created_at, project_id, projects(name)')
+          .eq('project_id', selectedProjectId)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      ]);
 
-    const { data: recentCode } = await supabase.from('code_files')
-      .select('id, filename, version, created_at, code_containers!inner(project_id, projects(name))')
-      .eq('code_containers.project_id', selectedProjectId)
-      .order('created_at', { ascending: false })
-      .limit(5);
+      const merged: ActivityItem[] = [];
 
-    const { data: recentKeys } = await supabase.from('api_keys')
-      .select('id, name, created_at, project_id, projects(name)')
-      .eq('project_id', selectedProjectId)
-      .order('created_at', { ascending: false })
-      .limit(5);
+      recentTasks?.forEach((t: any) => {
+        if (t.completed_at) {
+          merged.push({
+            id: t.id, type: 'task',
+            description: `Completed "${t.title}"`,
+            project_name: t.projects?.name || 'Unknown',
+            timestamp: t.completed_at
+          });
+        }
+      });
 
-    const { data: recentLogs } = await supabase.from('daily_logs')
-      .select('id, log_date, created_at, project_id, projects(name)')
-      .eq('project_id', selectedProjectId)
-      .order('created_at', { ascending: false })
-      .limit(5);
+      recentCode?.forEach((c: any) => {
+        const pName = c.code_containers?.projects?.name || 'Unknown';
+        if (c.created_at) {
+          merged.push({
+            id: c.id, type: 'code',
+            description: `Saved ${c.filename} (v${c.version})`,
+            project_name: pName,
+            timestamp: c.created_at
+          });
+        }
+      });
 
-    const merged: ActivityItem[] = [];
+      recentKeys?.forEach((k: any) => merged.push({
+        id: k.id, type: 'key',
+        description: `Added Key: ${k.platform_name}`, // Corrected field name
+        project_name: k.projects?.name || 'Unknown',
+        timestamp: k.created_at
+      }));
 
-    recentTasks?.forEach((t: any) => {
-      if (t.completed_at) {
-        merged.push({
-          id: t.id, type: 'task',
-          description: `Completed "${t.title}"`,
-          project_name: t.projects?.name || 'Unknown',
-          timestamp: t.completed_at
-        });
-      }
-    });
+      recentLogs?.forEach((l: any) => merged.push({
+        id: l.id, type: 'log',
+        description: `Daily Log for ${l.log_date}`,
+        project_name: l.projects?.name || 'Unknown',
+        timestamp: l.created_at || l.log_date
+      }));
 
-    recentCode?.forEach((c: any) => {
-      const pName = c.code_containers?.projects?.name || 'Unknown';
-      if (c.created_at) {
-        merged.push({
-          id: c.id, type: 'code',
-          description: `Saved ${c.filename} (v${c.version})`,
-          project_name: pName,
-          timestamp: c.created_at
-        });
-      }
-    });
-
-    recentKeys?.forEach((k: any) => merged.push({
-      id: k.id, type: 'key',
-      description: `Added Key: ${k.name}`,
-      project_name: k.projects?.name || 'Unknown',
-      timestamp: k.created_at
-    }));
-
-    recentLogs?.forEach((l: any) => merged.push({
-      id: l.id, type: 'log',
-      description: `Daily Log for ${l.log_date}`,
-      project_name: l.projects?.name || 'Unknown',
-      timestamp: l.created_at || l.log_date
-    }));
-
-    merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    setActivities(merged.slice(0, 10));
+      merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setActivities(merged.slice(0, 10));
+    } catch (err) {
+      console.error('Error fetching project activity:', err);
+    }
   };
 
   const project = projects.find(p => p.id === selectedProjectId);

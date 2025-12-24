@@ -9,7 +9,9 @@ import { DatabaseEditor } from '@/components/editors/DatabaseEditor';
 import { TaskHeatmap } from '@/components/charts/TaskHeatmap';
 import { ImprovementsBoard } from '@/components/boards/ImprovementsBoard';
 import { TraceDraw } from '@/components/tracedraw/TraceDraw';
+import { LockedFeature } from '@/components/billing/LockedFeature';
 import { useProjectStore } from '@/stores/projectStore';
+import { usePlanStore } from '@/stores/planStore';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
@@ -18,8 +20,8 @@ const tabs = [
   { id: 'daily-log', label: 'Daily Log' },
   { id: 'code-vault', label: 'Code Vault' },
   { id: 'api-keys', label: 'API Keys' },
-  { id: 'database', label: 'Database' },
-  { id: 'tracedraw', label: 'TraceDraw' },
+  { id: 'database', label: 'Database', locked: 'database' as const },
+  { id: 'tracedraw', label: 'TraceDraw', locked: 'tracedraw' as const },
   { id: 'tasks', label: 'Daily Tasks' },
   { id: 'improvements', label: 'Improvements' },
 ];
@@ -27,6 +29,7 @@ const tabs = [
 export function ProjectContainer() {
   const [activeTab, setActiveTab] = useState('overview');
   const { selectedProjectId, fetchProjectDetails, setSelectedProject, loading } = useProjectStore();
+  const { features } = usePlanStore();
 
   useEffect(() => {
     if (selectedProjectId) {
@@ -53,9 +56,17 @@ export function ProjectContainer() {
       case 'api-keys':
         return <APIKeyVault />;
       case 'database':
-        return <DatabaseEditor />;
+        return (
+          <LockedFeature feature="database">
+            <DatabaseEditor />
+          </LockedFeature>
+        );
       case 'tracedraw':
-        return <TraceDraw />;
+        return (
+          <LockedFeature feature="tracedraw">
+            <TraceDraw />
+          </LockedFeature>
+        );
       case 'tasks':
         return <TaskHeatmap />;
       case 'improvements':
@@ -65,13 +76,31 @@ export function ProjectContainer() {
     }
   };
 
+  // Get tab configuration with locked states
+  const getTabsWithLockState = () => {
+    return tabs.map(tab => ({
+      id: tab.id,
+      label: tab.label,
+      locked: tab.locked,
+      isLocked: tab.locked === 'database'
+        ? !features.databaseAccess
+        : tab.locked === 'tracedraw'
+          ? !features.traceDrawAccess
+          : false
+    }));
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center mb-2">
         <Button variant="ghost" size="sm" onClick={() => setSelectedProject(null)} className="mr-2">
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
-        <TerminalTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+        <TerminalTabs
+          tabs={getTabsWithLockState()}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
       </div>
 
       <div className="flex-1 pt-4 overflow-y-auto">

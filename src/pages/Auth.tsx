@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,28 +12,66 @@ import { Loader2 } from "lucide-react";
 
 export default function Auth() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [loading, setLoading] = useState(false);
+    const [checkingSession, setCheckingSession] = useState(true);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
     useEffect(() => {
-        // Check if already logged in
-        const checkUser = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
+        // Handle OAuth callback - check for hash fragment
+        const handleOAuthCallback = async () => {
+            // Check if this is an OAuth callback (has hash with access_token)
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            if (hashParams.get('access_token')) {
+                // Let Supabase process the hash
+                setCheckingSession(true);
+            }
+
+            // Check current session
+            const { data: { session }, error } = await supabase.auth.getSession();
+
+            if (error) {
+                console.error('Session check error:', error);
+                setCheckingSession(false);
+                return;
+            }
+
             if (session) {
-                navigate("/");
+                // User is logged in, redirect to home
+                navigate("/", { replace: true });
+            } else {
+                setCheckingSession(false);
             }
         };
-        checkUser();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            if (session) {
-                navigate("/");
+        handleOAuthCallback();
+
+        // Listen for auth state changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            console.log('Auth event:', event);
+            if (event === 'SIGNED_IN' && session) {
+                navigate("/", { replace: true });
+            }
+            if (event === 'SIGNED_OUT') {
+                setCheckingSession(false);
             }
         });
 
         return () => subscription.unsubscribe();
     }, [navigate]);
+
+    // Show loading while checking session (especially after OAuth redirect)
+    if (checkingSession) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background">
+                <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-muted-foreground">Checking authentication...</p>
+                </div>
+            </div>
+        );
+    }
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,10 +110,15 @@ export default function Auth() {
     const handleGoogleLogin = async () => {
         setLoading(true);
         try {
+            await supabase.auth.signOut(); // Ensure clean slate
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: "google",
                 options: {
-                    redirectTo: `${window.location.origin}/`,
+                    redirectTo: `${window.location.origin}`,
+                    queryParams: {
+                        access_type: 'offline',
+                        prompt: 'select_account',
+                    },
                 },
             });
             if (error) throw error;

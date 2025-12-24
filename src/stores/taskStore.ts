@@ -42,7 +42,8 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
     loading: false,
 
     fetchTasks: async (projectId, silent = false) => {
-        if (!silent) set({ loading: true });
+        const hasData = get().tasks.length > 0 && (!projectId || get().tasks[0].project_id === projectId);
+        if (!silent && !hasData) set({ loading: true });
         let query = supabase
             .from('tasks')
             .select('*')

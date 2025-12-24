@@ -37,10 +37,27 @@ export const useUserStore = create<UserStore>((set, get) => ({
             .from('users')
             .select('*')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
 
         if (error) {
             console.error("Error fetching profile", error);
+        }
+
+        if (!profile && user) {
+            // Profile missing? Create it manually (fallback if trigger failed)
+            console.log("Profile missing for auth user, creating...");
+            const { data: newProfile, error: createError } = await supabase
+                .from('users')
+                .insert({ id: user.id, email: user.email })
+                .select()
+                .single();
+
+            if (createError) {
+                console.error("Failed to create missing profile:", createError);
+            } else {
+                set({ profile: newProfile as UserProfile, loading: false });
+                return;
+            }
         }
 
         set({

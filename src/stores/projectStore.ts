@@ -211,7 +211,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   fetchProjectDetails: async (projectId) => {
-    set({ loading: true });
+    // If we already have data for this project, we can do a silent refresh or skip the loading state
+    const hasData = get().dailyLogs.length > 0 && get().dailyLogs[0].project_id === projectId;
+
+    if (!hasData) {
+      set({ loading: true });
+    }
 
     const [logs, keys, docs, imp, st] = await Promise.all([
       supabase.from('daily_logs').select('*').eq('project_id', projectId).order('log_date', { ascending: false }),

@@ -1,13 +1,20 @@
 
-import { Plus, FolderCode, Circle, LogOut } from 'lucide-react';
+import { Plus, FolderCode, Circle, LogOut, Crown, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useProjectStore } from '@/stores/projectStore';
+import { usePlanStore } from '@/stores/planStore';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { UserDashboardTrigger } from './UserDashboardTrigger';
 import { CreateProjectDialog } from '@/components/dialogs/CreateProjectDialog';
+import { toast } from 'sonner';
 
 export function Sidebar() {
+  const navigate = useNavigate();
   const { projects, selectedProjectId, setSelectedProject } = useProjectStore();
+  const { currentPlan, fetchPlan, loading } = usePlanStore();
+
+  const isPaid = currentPlan !== 'free';
 
   return (
     <aside className="w-56 h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
@@ -65,6 +72,31 @@ export function Sidebar() {
             </button>
           }
         />
+
+        <button
+          onClick={async () => {
+            await fetchPlan();
+            toast.success('Subscription status synced');
+          }}
+          disabled={loading}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-mono border border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50 transition-colors rounded-sm"
+        >
+          <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />
+          Sync Status
+        </button>
+
+        <button
+          onClick={() => navigate('/pricing')}
+          className={cn(
+            "w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-mono transition-colors rounded-sm border",
+            isPaid
+              ? "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20"
+              : "bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border-indigo-500/30 text-indigo-400 hover:from-indigo-500/20 hover:to-purple-500/20 hover:text-indigo-300"
+          )}
+        >
+          <Crown className="w-3.5 h-3.5" />
+          {isPaid ? (currentPlan === 'starter' ? 'Starter Plan' : 'Pro Plan') : 'Upgrade Plan'}
+        </button>
 
         <button
           onClick={() => supabase.auth.signOut()}
