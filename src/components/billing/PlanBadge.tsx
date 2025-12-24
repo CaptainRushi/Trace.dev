@@ -14,14 +14,20 @@ interface PlanBadgeProps {
     className?: string;
 }
 
-const planColors: Record<PlanType, string> = {
+const planColors: Record<string, string> = {
     free: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+    monthly: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+    yearly: 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-amber-500/30',
+    // Legacy
     starter: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
     pro: 'bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-400 border-amber-500/30',
 };
 
-const planIcons: Record<PlanType, typeof Crown> = {
+const planIcons: Record<string, typeof Crown> = {
     free: Zap,
+    monthly: Sparkles,
+    yearly: Crown,
+    // Legacy
     starter: Sparkles,
     pro: Crown,
 };
@@ -106,9 +112,9 @@ export function PlanIndicator({ className }: PlanIndicatorProps) {
                 <div className="flex items-center gap-2">
                     <div className={cn(
                         'w-8 h-8 rounded-lg flex items-center justify-center',
-                        currentPlan === 'pro'
+                        currentPlan === 'yearly' || currentPlan === 'pro'
                             ? 'bg-gradient-to-br from-amber-500 to-orange-600'
-                            : currentPlan === 'starter'
+                            : currentPlan === 'monthly' || currentPlan === 'starter'
                                 ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
                                 : 'bg-gray-600'
                     )}>

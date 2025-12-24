@@ -18,7 +18,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 const tabs = [
   { id: 'overview', label: 'Overview' },
   { id: 'daily-log', label: 'Daily Log' },
-  { id: 'code-vault', label: 'Code Vault' },
+  { id: 'code-vault', label: 'Code Vault', locked: 'database' as const },
   { id: 'api-keys', label: 'API Keys' },
   { id: 'database', label: 'Database', locked: 'database' as const },
   { id: 'tracedraw', label: 'TraceDraw', locked: 'tracedraw' as const },
@@ -52,7 +52,11 @@ export function ProjectContainer() {
       case 'daily-log':
         return <DailyLogEditor />;
       case 'code-vault':
-        return <CodeVault />;
+        return (
+          <LockedFeature feature="database">
+            <CodeVault />
+          </LockedFeature>
+        );
       case 'api-keys':
         return <APIKeyVault />;
       case 'database':

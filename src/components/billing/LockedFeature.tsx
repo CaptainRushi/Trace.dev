@@ -19,12 +19,12 @@ const FEATURE_CONFIG = {
     database: {
         name: 'Database Designer',
         description: 'Visual schema designer with SQL generation',
-        requiredPlan: 'starter' as PlanType,
+        requiredPlan: 'monthly' as PlanType,
     },
     tracedraw: {
         name: 'TraceDraw',
         description: 'Collaborative whiteboard for planning',
-        requiredPlan: 'starter' as PlanType,
+        requiredPlan: 'monthly' as PlanType,
     },
 };
 

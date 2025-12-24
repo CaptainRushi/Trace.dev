@@ -8,8 +8,8 @@ import crypto from 'crypto';
  * Dashboard → Subscriptions → Plans
  * 
  * Plans Configuration:
- * - Starter Plan: ₹499/month (plan_XXXXXXXX)
- * - Pro Plan: ₹1499/month (plan_YYYYYYYY)
+ * - Monthly Plan: ₹499/month (plan_XXXXXXXX)
+ * - Yearly Plan: ₹5,699/year (plan_YYYYYYYY)
  */
 class RazorpayService {
     constructor() {
@@ -39,12 +39,12 @@ class RazorpayService {
             this._isConfigured = !!(
                 process.env.RAZORPAY_KEY_ID &&
                 process.env.RAZORPAY_KEY_SECRET &&
-                process.env.RAZORPAY_PLAN_STARTER &&
-                process.env.RAZORPAY_PLAN_PRO
+                (process.env.RAZORPAY_PLAN_MONTHLY || process.env.RAZORPAY_PLAN_STARTER) &&
+                (process.env.RAZORPAY_PLAN_YEARLY || process.env.RAZORPAY_PLAN_PRO)
             );
             if (!this._isConfigured) {
                 console.warn('⚠️ Razorpay credentials or Plan IDs not configured.');
-                console.warn('   Please set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_PLAN_STARTER, and RAZORPAY_PLAN_PRO');
+                console.warn('   Please set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_PLAN_MONTHLY, and RAZORPAY_PLAN_YEARLY');
             }
         }
         return this._isConfigured;
@@ -55,35 +55,34 @@ class RazorpayService {
      */
     get plans() {
         return {
-            starter: {
-                id: process.env.RAZORPAY_PLAN_STARTER || 'plan_starter_placeholder',
-                name: 'Starter Plan',
-                price: 1,
+            monthly: {
+                id: process.env.RAZORPAY_PLAN_MONTHLY || process.env.RAZORPAY_PLAN_STARTER || 'plan_monthly_placeholder',
+                name: 'Monthly Plan',
+                price: 499,
                 currency: 'INR',
                 interval: 'monthly',
                 features: [
-                    '5 Projects',
-                    '100 API Keys',
-                    '10GB Code Storage',
-                    'Basic Analytics',
-                    'Email Support'
+                    'Unlimited project creation',
+                    'Database Visualization tools',
+                    'Table-to-code conversion',
+                    'Download generated code',
+                    'TraceDraw visual diagramming',
+                    'Export diagrams in PNG'
                 ]
             },
-            pro: {
-                id: process.env.RAZORPAY_PLAN_PRO || 'plan_pro_placeholder',
-                name: 'Pro Plan',
-                price: 2,
+            yearly: {
+                id: process.env.RAZORPAY_PLAN_YEARLY || process.env.RAZORPAY_PLAN_PRO || 'plan_yearly_placeholder',
+                name: 'Yearly Plan',
+                price: 5699,
                 currency: 'INR',
-                interval: 'monthly',
+                interval: 'yearly',
                 features: [
-                    'Unlimited Projects',
-                    'Unlimited API Keys',
-                    '100GB Code Storage',
-                    'Advanced Analytics',
-                    'Priority Support',
-                    'Team Collaboration',
-                    'Custom Integrations',
-                    'SSO Authentication'
+                    'Unlimited project creation',
+                    'Database Visualization tools',
+                    'Table-to-code conversion',
+                    'Download generated code',
+                    'TraceDraw visual diagramming',
+                    'Export diagrams in PNG'
                 ]
             }
         };

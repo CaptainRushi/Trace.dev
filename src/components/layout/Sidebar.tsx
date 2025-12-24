@@ -95,7 +95,7 @@ export function Sidebar() {
           )}
         >
           <Crown className="w-3.5 h-3.5" />
-          {isPaid ? (currentPlan === 'starter' ? 'Starter Plan' : 'Pro Plan') : 'Upgrade Plan'}
+          {isPaid ? (['monthly', 'starter'].includes(currentPlan) ? 'Monthly Plan' : 'Yearly Plan') : 'Upgrade Plan'}
         </button>
 
         <button

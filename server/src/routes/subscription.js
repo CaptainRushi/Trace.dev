@@ -170,12 +170,17 @@ router.post('/verify', async (req, res) => {
                     const now = new Date();
                     let expiresAt = null;
 
+                    // Map legacy plan types to new ones if necessary
+                    let effectivePlanType = planType;
+                    if (planType === 'starter') effectivePlanType = 'monthly';
+                    if (planType === 'pro') effectivePlanType = 'yearly';
+
                     // Calculate expiry
-                    if (planType === 'starter') {
+                    if (effectivePlanType === 'monthly') {
                         const expiry = new Date(now);
                         expiry.setMonth(expiry.getMonth() + 1);
                         expiresAt = expiry.toISOString();
-                    } else if (planType === 'pro') {
+                    } else if (effectivePlanType === 'yearly') {
                         const expiry = new Date(now);
                         expiry.setFullYear(expiry.getFullYear() + 1);
                         expiresAt = expiry.toISOString();
@@ -186,7 +191,7 @@ router.post('/verify', async (req, res) => {
                         .from('user_plans')
                         .upsert({
                             user_id: userId,
-                            plan_type: planType,
+                            plan_type: effectivePlanType,
                             activated_at: now.toISOString(),
                             expires_at: expiresAt,
                             razorpay_subscription_id: razorpay_subscription_id,

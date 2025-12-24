@@ -14,7 +14,7 @@ interface PlanCardProps {
 }
 
 export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: PlanCardProps) {
-    const isPro = plan.key === 'pro';
+    const isYearly = plan.key === 'yearly' || plan.key === 'pro';
 
     return (
         <Card
@@ -27,9 +27,9 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
             {/* Popular Badge */}
             {isPopular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-1 shadow-lg">
+                    <Badge className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-1 shadow-lg border-none whitespace-nowrap">
                         <Sparkles className="w-3 h-3 mr-1" />
-                        Most Popular
+                        Best Value
                     </Badge>
                 </div>
             )}
@@ -37,7 +37,7 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
             {/* Current Plan Badge */}
             {currentPlan && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-green-500 text-white px-4 py-1">
+                    <Badge className="bg-green-500 text-white px-4 py-1 border-none whitespace-nowrap">
                         <Check className="w-3 h-3 mr-1" />
                         Current Plan
                     </Badge>
@@ -47,11 +47,11 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
             <CardHeader className="text-center pb-2 pt-8">
                 <div className={cn(
                     'mx-auto w-12 h-12 rounded-xl flex items-center justify-center mb-4',
-                    isPro
+                    isYearly
                         ? 'bg-gradient-to-br from-indigo-500 to-purple-600'
                         : 'bg-gradient-to-br from-gray-500 to-gray-700'
                 )}>
-                    {isPro ? (
+                    {isYearly ? (
                         <Sparkles className="w-6 h-6 text-white" />
                     ) : (
                         <Zap className="w-6 h-6 text-white" />
@@ -60,7 +60,7 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
 
                 <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
                 <CardDescription className="text-muted-foreground">
-                    {isPro ? 'For growing teams' : 'Great for getting started'}
+                    {isYearly ? 'Maximum savings' : 'Flexible monthly billing'}
                 </CardDescription>
             </CardHeader>
 
@@ -74,7 +74,7 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
                         <span className="text-muted-foreground">/{plan.interval}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                        Billed monthly • Cancel anytime
+                        {isYearly ? 'Billed annually' : 'Billed monthly'} • Cancel anytime
                     </p>
                 </div>
 
@@ -84,7 +84,7 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
                         <li key={index} className="flex items-start gap-3">
                             <div className={cn(
                                 'mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0',
-                                isPro ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                                isYearly ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
                             )}>
                                 <Check className="w-3 h-3" />
                             </div>
@@ -98,9 +98,9 @@ export function PlanCard({ plan, isPopular, isLoading, currentPlan, onSelect }: 
                 <Button
                     className={cn(
                         'w-full h-12 text-base font-semibold transition-all',
-                        isPro && 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
+                        isYearly && 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700'
                     )}
-                    variant={isPro ? 'default' : 'outline'}
+                    variant={isYearly ? 'default' : 'outline'}
                     onClick={() => onSelect(plan)}
                     disabled={isLoading || currentPlan}
                 >

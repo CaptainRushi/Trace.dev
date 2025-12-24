@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 
-export type PlanType = 'free' | 'starter' | 'pro';
+export type PlanType = 'free' | 'monthly' | 'yearly' | 'starter' | 'pro';
 
 export interface UserPlan {
     id: string;
@@ -21,21 +21,34 @@ export interface PlanFeatures {
 }
 
 // Feature access by plan type
-export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
+export const PLAN_FEATURES: Record<string, PlanFeatures> = {
     free: {
         maxProjects: 5,
         databaseAccess: false,
         traceDrawAccess: false,
         prioritySupport: false,
     },
-    starter: {
+    monthly: {
         maxProjects: null, // unlimited
         databaseAccess: true,
         traceDrawAccess: true,
-        prioritySupport: false,
+        prioritySupport: true,
+    },
+    yearly: {
+        maxProjects: null, // unlimited
+        databaseAccess: true,
+        traceDrawAccess: true,
+        prioritySupport: true,
+    },
+    // Legacy mapping
+    starter: {
+        maxProjects: null,
+        databaseAccess: true,
+        traceDrawAccess: true,
+        prioritySupport: true,
     },
     pro: {
-        maxProjects: null, // unlimited
+        maxProjects: null,
         databaseAccess: true,
         traceDrawAccess: true,
         prioritySupport: true,
@@ -43,10 +56,13 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
 };
 
 // Plan display info
-export const PLAN_INFO: Record<PlanType, { name: string; duration: string; badge: string }> = {
+export const PLAN_INFO: Record<string, { name: string; duration: string; badge: string }> = {
     free: { name: 'Free Plan', duration: 'Forever', badge: '🆓' },
-    starter: { name: 'Starter Plan', duration: '1 Month', badge: '⭐' },
-    pro: { name: 'Pro Plan', duration: '1 Year', badge: '🚀' },
+    monthly: { name: 'Monthly Plan', duration: '1 Month', badge: '💳' },
+    yearly: { name: 'Yearly Plan', duration: '1 Year', badge: '👑' },
+    // Legacy labels
+    starter: { name: 'Monthly Plan', duration: '1 Month', badge: '💳' },
+    pro: { name: 'Yearly Plan', duration: '1 Year', badge: '👑' },
 };
 
 interface PlanStore {
@@ -90,6 +106,10 @@ const updateComputedState = (plan: UserPlan | null): {
     }
 
     let planType = (plan.plan_type || 'free') as PlanType;
+
+    // Map legacy types to new ones for display
+    if (planType === 'starter') planType = 'monthly';
+    if (planType === 'pro') planType = 'yearly';
 
     // Check expiry
     if (planType !== 'free' && plan.expires_at) {
@@ -229,11 +249,11 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
             const now = new Date();
             let expiresAt: string | null = null;
 
-            if (planType === 'starter') {
+            if (planType === 'monthly' || planType === 'starter') {
                 const expiry = new Date(now);
                 expiry.setMonth(expiry.getMonth() + 1);
                 expiresAt = expiry.toISOString();
-            } else if (planType === 'pro') {
+            } else if (planType === 'yearly' || planType === 'pro') {
                 const expiry = new Date(now);
                 expiry.setFullYear(expiry.getFullYear() + 1);
                 expiresAt = expiry.toISOString();

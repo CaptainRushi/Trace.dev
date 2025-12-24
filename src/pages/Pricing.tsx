@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CreditCard, Shield, ArrowLeft, CheckCircle2, Loader2, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { PlanCard } from '@/components/billing/PlanCard';
 import { PlanIndicator } from '@/components/billing/PlanBadge';
@@ -38,36 +39,35 @@ export default function Pricing() {
                 // Fallback to hardcoded plans if backend is unavailable
                 setPlans([
                     {
-                        key: 'starter',
-                        id: 'plan_starter',
-                        name: 'Starter Plan',
+                        key: 'monthly',
+                        id: 'plan_monthly',
+                        name: 'Monthly',
                         price: 499,
                         currency: 'INR',
-                        interval: 'monthly',
+                        interval: 'month',
                         features: [
-                            'Unlimited Projects',
-                            'Database Designer Access',
-                            'TraceDraw Access',
-                            'Basic Analytics',
-                            'Email Support'
+                            'Unlimited project creation',
+                            'Database Visualization tools',
+                            'Table-to-code conversion',
+                            'Download generated code',
+                            'TraceDraw visual diagramming',
+                            'Export diagrams in PNG'
                         ]
                     },
                     {
-                        key: 'pro',
-                        id: 'plan_pro',
-                        name: 'Pro Plan',
-                        price: 1499,
+                        key: 'yearly',
+                        id: 'plan_yearly',
+                        name: 'Yearly',
+                        price: 5699,
                         currency: 'INR',
-                        interval: 'yearly',
+                        interval: 'year',
                         features: [
-                            'Unlimited Projects',
-                            'Database Designer Access',
-                            'TraceDraw Access',
-                            'Advanced Analytics',
-                            'Priority Support',
-                            'Team Collaboration',
-                            'Custom Integrations',
-                            '1 Year Validity'
+                            'Unlimited project creation',
+                            'Database Visualization tools',
+                            'Table-to-code conversion',
+                            'Download generated code',
+                            'TraceDraw visual diagramming',
+                            'Export diagrams in PNG'
                         ]
                     }
                 ]);
@@ -131,9 +131,13 @@ export default function Pricing() {
                     <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-foreground via-foreground/80 to-foreground bg-clip-text text-transparent">
                         Simple, Transparent Pricing
                     </h1>
-                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                        Start free, upgrade when you're ready. No hidden fees, cancel anytime.
+                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-4">
+                        Same features — pay monthly or save more with yearly billing.
                     </p>
+                    <div className="flex justify-center items-center gap-4 text-sm font-medium text-primary bg-primary/5 py-3 px-6 rounded-2xl border border-primary/10 inline-block mx-auto">
+                        <span>Save ₹289 per year with Yearly billing</span>
+                        <Badge variant="secondary" className="bg-primary/20 text-primary border-none">~5% OFF</Badge>
+                    </div>
                 </div>
 
                 {/* Current Plan Indicator */}
@@ -149,7 +153,7 @@ export default function Pricing() {
                         <PlanCard
                             key={plan.key}
                             plan={plan}
-                            isPopular={plan.key === 'pro' && currentPlan !== 'pro'}
+                            isPopular={plan.key === 'yearly'}
                             isLoading={isLoading && selectedPlan?.key === plan.key}
                             currentPlan={plan.key === currentPlan}
                             onSelect={handlePlanSelect}
