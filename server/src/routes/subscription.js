@@ -74,6 +74,7 @@ router.get('/plans', (req, res) => {
 router.post('/create', async (req, res) => {
     try {
         const { planId, planKey, customerEmail } = req.body;
+        log(`Creating subscription for: ${customerEmail}, Key: ${planKey}, ID: ${planId}`);
 
         // Validate input
         if (!customerEmail) {
@@ -88,18 +89,20 @@ router.post('/create', async (req, res) => {
         if (!resolvedPlanId && planKey) {
             const plan = razorpayService.getPlan(planKey);
             if (!plan) {
+                log(`❌ Invalid plan key provided: ${planKey}`);
                 return res.status(400).json({
                     success: false,
-                    error: 'Invalid plan key'
+                    error: `Invalid plan key: ${planKey}`
                 });
             }
             resolvedPlanId = plan.id;
         }
 
-        if (!resolvedPlanId) {
+        if (!resolvedPlanId || resolvedPlanId.includes('placeholder')) {
+            log(`❌ Plan ID is missing or a placeholder: ${resolvedPlanId}`);
             return res.status(400).json({
                 success: false,
-                error: 'Plan ID or plan key is required'
+                error: 'Valid Plan ID is required. Check your RAZORPAY_PLAN environment variables.'
             });
         }
 

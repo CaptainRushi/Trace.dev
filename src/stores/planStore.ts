@@ -186,11 +186,10 @@ export const usePlanStore = create<PlanStore>((set, get) => ({
                     } else {
                         console.log(`[PlanStore] No plan found via API, successful response but no plan record.`);
                     }
-                } else {
-                    console.warn(`[PlanStore] API fetch failed with status ${response.status}`);
                 }
             } catch (apiError) {
-                console.warn('[PlanStore] Backend API unreachable, falling back to Supabase:', apiError);
+                // Ignore errors here as we fallback to Supabase direct
+                console.log('[PlanStore] Backend API unreachable, falling back to Supabase direct');
             }
 
             // Fallback to Supabase direct if API failed or returned nothing

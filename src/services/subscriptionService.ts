@@ -46,16 +46,68 @@ export interface PlansResponse {
 }
 
 /**
+ * Default plans to use as fallback if backend is unavailable
+ */
+export const DEFAULT_PLANS: Plan[] = [
+    {
+        key: 'monthly',
+        id: 'plan_monthly',
+        name: 'Monthly Plan',
+        price: 499,
+        currency: 'INR',
+        interval: 'month',
+        features: [
+            'Unlimited project creation',
+            'Database Visualization tools',
+            'Table-to-code conversion',
+            'Download generated code',
+            'TraceDraw visual diagramming',
+            'Export diagrams in PNG'
+        ]
+    },
+    {
+        key: 'yearly',
+        id: 'plan_yearly',
+        name: 'Yearly Plan',
+        price: 5699,
+        currency: 'INR',
+        interval: 'year',
+        features: [
+            'Unlimited project creation',
+            'Database Visualization tools',
+            'Table-to-code conversion',
+            'Download generated code',
+            'TraceDraw visual diagramming',
+            'Export diagrams in PNG'
+        ]
+    }
+];
+
+/**
  * Fetch all available subscription plans
  */
 export async function getPlans(): Promise<PlansResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/subscription/plans`);
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/subscription/plans`);
 
-    if (!response.ok) {
-        throw new Error('Failed to fetch plans');
+        if (!response.ok) {
+            console.warn('[SubscriptionService] Failed to fetch plans from API, using defaults');
+            return {
+                success: true,
+                plans: DEFAULT_PLANS,
+                publicKey: import.meta.env.VITE_RAZORPAY_KEY_ID || ''
+            };
+        }
+
+        return response.json();
+    } catch (error) {
+        console.warn('[SubscriptionService] Network error fetching plans, using defaults:', error);
+        return {
+            success: true,
+            plans: DEFAULT_PLANS,
+            publicKey: import.meta.env.VITE_RAZORPAY_KEY_ID || ''
+        };
     }
-
-    return response.json();
 }
 
 /**

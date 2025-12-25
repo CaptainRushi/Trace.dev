@@ -8,19 +8,19 @@ import { toast } from 'sonner';
 import { PlanCard } from '@/components/billing/PlanCard';
 import { PlanIndicator } from '@/components/billing/PlanBadge';
 import { useSubscriptionCheckout } from '@/components/billing/useSubscriptionCheckout';
-import { getPlans, type Plan } from '@/services/subscriptionService';
+import { DEFAULT_PLANS, getPlans, type Plan } from '@/services/subscriptionService';
 import { usePlanStore } from '@/stores/planStore';
 import { useUserStore } from '@/stores/userStore';
 
 export default function Pricing() {
     const navigate = useNavigate();
-    const [plans, setPlans] = useState<Plan[]>([]);
+    const [plans, setPlans] = useState<Plan[]>(DEFAULT_PLANS);
     const [loading, setLoading] = useState(true);
     const { currentPlan, fetchPlan } = usePlanStore();
     const { profile, loading: userLoading } = useUserStore();
 
     const userEmail = profile?.email || '';
-    const userName = profile?.username; // or metadata if available in store? Store has username/email.
+    const userName = profile?.username;
 
     // Fetch plan on mount
     useEffect(() => {
@@ -32,45 +32,12 @@ export default function Pricing() {
         const fetchPlansData = async () => {
             try {
                 const response = await getPlans();
-                setPlans(response.plans);
+                if (response.plans && response.plans.length > 0) {
+                    setPlans(response.plans);
+                }
             } catch (error) {
                 console.error('Failed to fetch plans:', error);
-                toast.error('Failed to load plans. Using default plans.');
-                // Fallback to hardcoded plans if backend is unavailable
-                setPlans([
-                    {
-                        key: 'monthly',
-                        id: 'plan_monthly',
-                        name: 'Monthly',
-                        price: 499,
-                        currency: 'INR',
-                        interval: 'month',
-                        features: [
-                            'Unlimited project creation',
-                            'Database Visualization tools',
-                            'Table-to-code conversion',
-                            'Download generated code',
-                            'TraceDraw visual diagramming',
-                            'Export diagrams in PNG'
-                        ]
-                    },
-                    {
-                        key: 'yearly',
-                        id: 'plan_yearly',
-                        name: 'Yearly',
-                        price: 5699,
-                        currency: 'INR',
-                        interval: 'year',
-                        features: [
-                            'Unlimited project creation',
-                            'Database Visualization tools',
-                            'Table-to-code conversion',
-                            'Download generated code',
-                            'TraceDraw visual diagramming',
-                            'Export diagrams in PNG'
-                        ]
-                    }
-                ]);
+                // Note: getPlans already returns DEFAULT_PLANS on error
             } finally {
                 setLoading(false);
             }
