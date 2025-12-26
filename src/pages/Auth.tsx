@@ -134,6 +134,7 @@ export default function Auth() {
         setLoading(true);
         const origin = window.location.origin;
         try {
+            console.log("Sending magic link with redirect to:", origin);
             const { error } = await supabase.auth.signInWithOtp({
                 email,
                 options: {
@@ -144,7 +145,11 @@ export default function Auth() {
             toast.success("Magic link sent! Please check your email inbox.");
         } catch (error: any) {
             console.error("Magic link error:", error);
-            toast.error(error.message || "Failed to send magic link");
+            const isRedirectError = error.message?.toLowerCase().includes("redirect") || error.message?.toLowerCase().includes("url");
+            toast.error(
+                error.message || "Failed to send magic link",
+                { description: isRedirectError ? "Check Supabase Auth > URL Configuration" : undefined }
+            );
         } finally {
             setLoading(false);
         }
