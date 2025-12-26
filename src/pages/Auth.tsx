@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Wand2 } from "lucide-react";
 
 export default function Auth() {
     const navigate = useNavigate();
@@ -98,18 +98,53 @@ export default function Auth() {
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+
+        const origin = window.location.origin;
+        console.log("Attempting signup from origin:", origin);
+
         try {
-            const { error } = await supabase.auth.signUp({
+            const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
-                    emailRedirectTo: window.location.origin
+                    emailRedirectTo: origin
+                }
+            });
+
+            console.log("Signup response:", { data, error });
+
+            if (error) throw error;
+
+            if (data.user && data.user.identities && data.user.identities.length === 0) {
+                toast.warning("This email is already registered. Please login or check your email for a previous confirmation link.");
+                return;
+            }
+
+            toast.success("Signup successful! Please check your email inbox (and spam folder).");
+        } catch (error: any) {
+            console.error("Signup error:", error);
+            toast.error(error.message || "An error occurred during signup");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleMagicLink = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        const origin = window.location.origin;
+        try {
+            const { error } = await supabase.auth.signInWithOtp({
+                email,
+                options: {
+                    emailRedirectTo: origin,
                 }
             });
             if (error) throw error;
-            toast.success("Signup successful! Please check your email for confirmation.");
+            toast.success("Magic link sent! Please check your email inbox.");
         } catch (error: any) {
-            toast.error(error.message || "An error occurred during signup");
+            console.error("Magic link error:", error);
+            toast.error(error.message || "Failed to send magic link");
         } finally {
             setLoading(false);
         }
@@ -145,9 +180,10 @@ export default function Auth() {
                 </CardHeader>
                 <CardContent>
                     <Tabs defaultValue="login" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
+                        <TabsList className="grid w-full grid-cols-3 mb-4">
                             <TabsTrigger value="login">Login</TabsTrigger>
                             <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                            <TabsTrigger value="magic-link">Magic Link</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="login">
@@ -207,6 +243,29 @@ export default function Auth() {
                                 <Button type="submit" className="w-full" disabled={loading}>
                                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                     Create Account
+                                </Button>
+                            </form>
+                        </TabsContent>
+
+                        <TabsContent value="magic-link">
+                            <form onSubmit={handleMagicLink} className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="magic-email">Email</Label>
+                                    <Input
+                                        id="magic-email"
+                                        type="email"
+                                        placeholder="dev@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                                <div className="text-sm text-muted-foreground text-center">
+                                    We'll send you a link to sign in without a password.
+                                </div>
+                                <Button type="submit" className="w-full" disabled={loading}>
+                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                                    Send Magic Link
                                 </Button>
                             </form>
                         </TabsContent>
