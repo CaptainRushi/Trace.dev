@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2, Wand2 } from "lucide-react";
+import { Loader2, Wand2, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function Auth() {
     const navigate = useNavigate();
@@ -187,6 +188,20 @@ export default function Auth() {
                         </TabsList>
 
                         <TabsContent value="login">
+                            <Alert className="mb-4 bg-muted/50 border-primary/20">
+                                <Info className="h-4 w-4 text-primary" />
+                                <AlertTitle className="text-primary font-semibold">Test Credentials</AlertTitle>
+                                <AlertDescription className="mt-2 text-xs flex flex-col gap-1">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Email:</span>
+                                        <span className="font-mono font-medium">razorpay@trace.dev</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Password:</span>
+                                        <span className="font-mono font-medium">RazorpayTest@123</span>
+                                    </div>
+                                </AlertDescription>
+                            </Alert>
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="email">Email</Label>
