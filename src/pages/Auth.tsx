@@ -123,7 +123,14 @@ export default function Auth() {
             toast.success("Signup successful! Please check your email inbox (and spam folder).");
         } catch (error: any) {
             console.error("Signup error:", error);
-            toast.error(error.message || "An error occurred during signup");
+
+            if (error.status === 429 || error.message?.includes("rate limit")) {
+                toast.error("Too many attempts. Please wait a minute before trying again.");
+            } else if (error.message?.includes("confirmation email")) {
+                toast.error("Error sending confirmation email. Please try again later or contact support if this persists.");
+            } else {
+                toast.error(error.message || "An error occurred during signup");
+            }
         } finally {
             setLoading(false);
         }
