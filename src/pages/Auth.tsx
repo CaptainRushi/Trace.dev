@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Github } from "lucide-react";
 
 export default function Auth() {
     const navigate = useNavigate();
@@ -136,6 +136,23 @@ export default function Auth() {
         }
     };
 
+    const handleGithubLogin = async () => {
+        setLoading(true);
+        try {
+            await supabase.auth.signOut(); // Ensure clean slate
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: "github",
+                options: {
+                    redirectTo: `${window.location.origin}`,
+                },
+            });
+            if (error) throw error;
+        } catch (error: any) {
+            toast.error(error.message || "An error occurred with GitHub login");
+            setLoading(false);
+        }
+    };
+
 
 
     const handleGoogleLogin = async () => {
@@ -172,81 +189,83 @@ export default function Auth() {
                             <TabsTrigger value="login">Login</TabsTrigger>
                             <TabsTrigger value="signup">Sign Up</TabsTrigger>
                         </TabsList>
+                    </TabsList>
 
-                        <TabsContent value="login">
+                    <TabsContent value="login">
 
-                            <form onSubmit={handleLogin} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input
-                                        id="email"
-                                        type="email"
-                                        placeholder="dev@example.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="password">Password</Label>
-                                    <Input
-                                        id="password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Sign In
-                                </Button>
-                            </form>
-                        </TabsContent>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="dev@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Sign In
+                            </Button>
+                        </form>
+                    </TabsContent>
 
-                        <TabsContent value="signup">
-                            <form onSubmit={handleSignup} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="signup-email">Email</Label>
-                                    <Input
-                                        id="signup-email"
-                                        type="email"
-                                        placeholder="dev@example.com"
-                                        value={email}
-                                        onChange={(e) => setEmail(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="signup-password">Password</Label>
-                                    <Input
-                                        id="signup-password"
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        required
-                                        minLength={6}
-                                    />
-                                </div>
-                                <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Create Account
-                                </Button>
-                            </form>
-                        </TabsContent>
+                    <TabsContent value="signup">
+                        <form onSubmit={handleSignup} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="signup-email">Email</Label>
+                                <Input
+                                    id="signup-email"
+                                    type="email"
+                                    placeholder="dev@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="signup-password">Password</Label>
+                                <Input
+                                    id="signup-password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    minLength={6}
+                                />
+                            </div>
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Create Account
+                            </Button>
+                        </form>
+                    </TabsContent>
 
 
-                    </Tabs>
+                </Tabs>
 
-                    <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                        </div>
+                <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
                     </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                    </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
                     <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin} disabled={loading}>
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (
                             <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -270,12 +289,17 @@ export default function Auth() {
                         )}
                         Google
                     </Button>
+                    <Button variant="outline" type="button" className="w-full" onClick={handleGithubLogin} disabled={loading}>
+                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Github className="mr-2 h-4 w-4" />}
+                        GitHub
+                    </Button>
+                </div>
 
-                </CardContent>
-                <CardFooter className="flex justify-center text-sm text-muted-foreground">
-                    <p>Secure usage only. No fake data.</p>
-                </CardFooter>
-            </Card>
-        </div>
+            </CardContent>
+            <CardFooter className="flex justify-center text-sm text-muted-foreground">
+                <p>Secure usage only. No fake data.</p>
+            </CardFooter>
+        </Card>
+        </div >
     );
 }
