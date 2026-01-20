@@ -115,3 +115,4 @@ supabase functions deploy
 - Use `.env.example` as a template
 - Razorpay `KEY_SECRET` must never be exposed to the frontend
 - All payment verification happens server-side
+- by rushi
